@@ -1,32 +1,25 @@
-function onButtonClick() {
-  log('Requesting Bluetooth Device...')
-  navigator.bluetooth.requestDevice(
-    {
+async function onButtonClick() {
+  try {
+    log('Requesting Bluetooth Device...')
+    const device = await navigator.bluetooth.requestDevice({
       filters: [{namePrefix: ['konashi']}],
       optionalServices: ['battery_service'],
-    }
-  )
-    .then(device => {
-      log('Connecting to GATT Server...')
-      return device.gatt.connect()
     })
-    .then(server => {
-      log('Getting Battery Service...')
-      return server.getPrimaryService('battery_service')
-    })
-    .then(service => {
-      log('Getting Battery Level Characteristic...')
-      return service.getCharacteristic('battery_level')
-    })
-    .then(characteristic => {
-      log('Reading Battery Level...')
-      return characteristic.readValue()
-    })
-    .then(value => {
-      let batteryLevel = value.getUint8(0)
-      log(`> Battery Level is ${batteryLevel}%`)
-    })
-    .catch(error => {
-      log(`Argh! ${error}`)
-    })
+
+    log('Connecting to GATT Server...')
+    const server = await device.gatt.connect()
+
+    log('Getting Battery Server...')
+    const service = await server.getPrimaryService('battery_service')
+
+    log('Getting Battery Level Characteristic...')
+    const characteristic = await service.getCharacteristic('battery_level')
+
+    log('Reading Battery Level...')
+    const value = await characteristic.readValue()
+
+    log(`Battery Level is ${value.getUint8(0)}%`)
+  } catch(error) {
+    log(`Argh! ${error}`)
+  }
 }
