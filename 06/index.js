@@ -1,11 +1,14 @@
 let bluetoothDevice
 
-function onScanButtonClick() {
+async function onScanButtonClick() {
   let options = {filters: []}
 
   let filterService = document.querySelector('#service').value
   if (filterService.startsWith('0x')) {
     filterService = parseInt(filterService)
+  }
+  if (filterService) {
+    options.filters.push({services: [filterService]})
   }
 
   let filterName = document.querySelector('#name').value
@@ -19,24 +22,20 @@ function onScanButtonClick() {
   }
 
   bluetoothDevice = null
-  log('Requesting Bluetooth Device...')
-  navigator.bluetooth.requestDevice(options)
-    .then(device => {
-      bluetoothDevice = device
-      bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected)
-      return connect()
-    })
-    .catch(error => {
-      log(`Argh! ${error}`)
-    })
+  try {
+    log('Requesting Bluetooth Device...')
+    bluetoothDevice = await navigator.bluetooth.requestDevice(options)
+    bluetoothDevice.addEventListener('gattserverdisconnected', onDisconnected)
+    connect()
+  } catch(error) {
+    log(`Argh! ${error}`)
+  }
 }
 
-function connect() {
+async function connect() {
   log('Connecting to Bluetooth Device...')
-  return bluetoothDevice.gatt.connect()
-    .then(server => {
-      log('> Bluetooth Device connected')
-    })
+  await bluetoothDevice.gatt.connect()
+  log('> Bluetooth Device connected')
 }
 
 function onDisconnectButtonClick() {
@@ -65,9 +64,9 @@ function onReconnectButtonClick() {
     log('> Bluetooth Device is already connected')
     return
   }
-
-  connect()
-    .catch(error => {
-      log(`Argh! ${error}`)
-    })
+  try {
+    connect()
+  } catch(error) {
+    log(`Argh! ${error}`)
+  }
 }
