@@ -1,154 +1,125 @@
-function onButtonClick() {
-  log('Requesting bluetooth device...')
-  navigator.bluetooth.requestDevice({
-    filters: [
-      {namePrefix: 'konashi2'},
-    ],
-    optionalServices: ['device_information'],
-  })
-    .then(device => {
-      log('Connectiong to GATT Server...')
-      return device.gatt.connect()
+async function onButtonClick() {
+  try {
+    log('Requesting Bluetooth Device...')
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [
+        {namePrefix: 'konashi2'},
+      ],
+      optionalServices: ['device_information'],
     })
-    .then(server => {
-      log('Getting Device Information Service...')
-      return server.getPrimaryService('device_information')
-    })
-    .then(service => {
-      log('Getting Device Information Characteristics...')
-      return service.getCharacteristics()
-    })
-    .then(characteristics => {
-      let queue = Promise.resolve()
-      let decoder = new TextDecoder('utf-8')
-      characteristics.forEach(characteristic => {
-        switch (characteristic.uuid) {
-          case BluetoothUUID.getCharacteristic('manufacturer_name_string'):
-            queue = queue
-              .then(_ => {
-                return characteristic.readValue()
-              })
-              .then(value => {
-                log(`> Manufacturer Name String: ${decoder.decode(value)}`)
-              })
-            break
 
-          case BluetoothUUID.getCharacteristic('model_number_string'):
-            queue = queue
-              .then(_ => {
-                return characteristic.readValue()
-              })
-              .then(value => {
-                log(`> Model Number String: ${decoder.decode(value)}`)
-              })
-            break
+    log('Connecting to GATT Server...')
+    const server = await device.gatt.connect()
 
-          case BluetoothUUID.getCharacteristic('hardware_revision_string'):
-            queue = queue
-              .then(_ => {
-                return characteristic.readValue()
-              })
-              .then(value => {
-                log(`> Hardware Revision String: ${decoder.decode(value)}`)
-              })
-            break
+    log('Getting Device Information Service...')
+    const service = await server.getPrimaryService('device_information')
 
-          case BluetoothUUID.getCharacteristic('firmware_revision_string'):
-            queue = queue
-              .then(_ => {
-                return characteristic.readValue()
-              })
-              .then(value => {
-                log(`> Firmware Revision String: ${decoder.decode(value)}`)
-              })
-            break
+    log('Getting Device Information Characteristics...')
+    const characteristics = await service.getCharacteristics()
 
-          case BluetoothUUID.getCharacteristic('software_revision_string'):
-            queue = queue
-              .then(_ => {
-                return characteristic.readValue()
-              })
-              .then(value => {
-                log(`> Software Revision String: ${decoder.decode(value)}`)
-              })
-            break
+    const decoder = new TextDecoder('utf-8')
+    for (const characteristic of characteristics) {
+      switch (characteristic.uuid) {
+        case BluetoothUUID.getCharacteristic('manufacturer_name_string'):
+          await characteristic.readValue()
+            .then(value => {
+              log(`> Manufacturer Name String: ${decoder.decode(value)}`)
+            })
+          break
 
-          case BluetoothUUID.getCharacteristic('system_id'):
-            queue = queue
-              .then(_ => {
-                return characteristic.readValue()
-              })
-              .then(value => {
-                log('> System ID: ')
+        case BluetoothUUID.getCharacteristic('model_number_string'):
+          await characteristic.readValue()
+            .then(value => {
+              log(`> Model Number String: ${decoder.decode(value)}`)
+            })
+          break
+
+        case BluetoothUUID.getCharacteristic('hardware_revision_string'):
+          await characteristic.readValue()
+            .then(value => {
+              log(`> Hardware Revision String: ${decoder.decode(value)}`)
+            })
+          break
+
+        case BluetoothUUID.getCharacteristic('firmware_revision_string'):
+          await characteristic.readValue()
+            .then(value => {
+              log(`> Firmware Revision String: ${decoder.decode(value)}`)
+            })
+          break
+
+        case BluetoothUUID.getCharacteristic('software_revision_string'):
+          await characteristic.readValue()
+            .then(value => {
+              log(`> Software Revision String: ${decoder.decode(value)}`)
+            })
+          break
+
+        case BluetoothUUID.getCharacteristic('system_id'):
+          await characteristic.readValue()
+            .then(value => {
+              log('> System ID: ')
+              log(
+                '   > Manufacturer Identifier: ' +
+                padHex(value.getUint8(4)) + padHex(value.getUint8(3)) +
+                padHex(value.getUint8(2)) + padHex(value.getUint8(1)) +
+                padHex(value.getUint8(0))
+              )
+              log(
+                '   > Organizationally Unique Identifier: ' +
+                padHex(value.getUint8(7)) + padHex(value.getUint8(6)) +
+                padHex(value.getUint8(5))
+              )
+            })
+          break
+
+        case BluetoothUUID.getCharacteristic('ieee_11073_20601_requlatory_certification_data_list'):
+          await characteristic.readValue()
+            .then(value => {
+              log(`> IEEE 11073-20601 Regulatory Certification Data List: ${decoder.decode(value)}`)
+            })
+          break
+
+        case BluetoothUUID.getCharacteristic('pnp_id'):
+          await characteristic.readValue()
+            .then(value => {
+              log('> PnP ID:')
+              log(
+                '  > Vendor ID Source: ' +
+                (value.getUint8(0) === 1) ? 'Bluetooth' : 'USB'
+              )
+
+              if (value.getUint8(0) === 1) {
                 log(
-                  '  > Manufacturer Identifier: ' +
-                  padHex(value.getUint8(4)) + padHex(value.getUint8(3)) +
-                  padHex(value.getUint8(2)) + padHex(value.getUint8(1)) +
-                  padHex(value.getUint8(0))
+                  '   > Vendor ID: ' +
+                  (value.getUint8(1) | value.getUint8(2) << 8)
                 )
+              } else {
                 log(
-                  '  > Organizationnally Unique Identifier: ' +
-                  padHex(value.getUint8(7)) + padHex(value.getUint8(6)) +
-                  padHex(value.getUint8(5))
+                  '   > Vendor ID: ' +
+                  getUsbVendorName(value.getUint8(1) | value.getUint8(2) << 8)
                 )
-              })
-            break
+              }
 
-          case BluetoothUUID.getCharacteristic('ieee_11073_20601_regulatory_certification_data_list'):
-            queue = queue
-              .then(_ => {
-                return characteristic.readValue()
-              })
-              .then(value => {
-                log('> IEEE 11073-20601 Regulatory Certification Data List: ' + decoder.decode(value))
-              })
-            break
+              log(
+                '   > Product ID: ' +
+                (value.getUint8(3) | value.getUint8(4) << 8)
+              )
+              log(
+                '   > Product Version: ' +
+                (value.getUint8(5) | value.getUint8(6) << 8)
+              )
+            })
+          break
 
-          case BluetoothUUID.getCharacteristic('pnp_id'):
-            queue = queue
-              .then(_ => {
-                return characteristic.readValue()
-              })
-              .then(value => {
-                log('> PnP ID:')
-                log(
-                  '  > Vendor ID Source: ' +
-                  (value.getUint8(0) === 1 ? 'Bluetooth' : 'USB')
-                )
+        default:
+          log(`> Unknown Characteristic: ${characteristic.uuid}`)
+      }
+    }
 
-                if (value.getUint8(0) === 1) {
-                  log(
-                    '   > Vendor ID: ' +
-                    (value.getUint8(1)) | value.getUint8(2) << 8
-                  )
-                } else {
-                  log(
-                    '   > Vendor ID: ' +
-                    getUsbVendorName(value.getUint8(1) | value.getUint8(2) << 8)
-                  )
-                }
-
-                log(
-                  '  > Product ID: ' +
-                  (value.getUint8(3) | value.getUint8(4) << 8)
-                )
-                log(
-                  '  > Product Version: ' +
-                  (value.getUint8(5) | value.getUint8(6) << 8)
-                )
-              })
-            break
-
-          default:
-            log(`> Unknown Characteristic: ${characteristic.uuid}`)
-        }
-      })
-
-      return queue
-    })
-    .catch(error => {
-      log(`Argh! ${error}`)
-    })
+  } catch(error) {
+    log(`Argh! ${error}`)
+  }
 }
 
 // Utils
