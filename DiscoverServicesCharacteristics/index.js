@@ -1,46 +1,40 @@
-function onButtonClick() {
+async function onButtonClick() {
   // Validate services UUID entered by user first.
   let optionalServices = document.querySelector('#optionalServices').value
     .split(/, ?/).map(s => s.startsWith('0x') ? parseInt(s) : s)
     .filter(s => s && BluetoothUUID.getService)
 
-  log('Requesting Bluetooth Device...')
-  navigator.bluetooth.requestDevice({
-    filters: [
-      {namePrefix: 'konashi2'},
-    ],
-    optionalServices: optionalServices,
-  })
-    .then(device => {
-      // Note that we could also get all services that match a specific UUID by
-      // passing it to getPrimaryServices().
-      log('Getting Services...')
-      return server.getPrimaryServices()
+  try {
+    log('Requesting Bluetooth Device...')
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [
+        {namePrefix: 'konashi2'},
+      ],
+      optionalServices: optionalServices,
     })
-    .then(services => {
-      log('Getting Characteristics...')
-      let queue = Promise.resolve()
-      services.forEach(service => {
-        queue = queue
-          .then(_ => {
-            return service.getCharacteristics()
-          })
-          .then(characteristics => {
-            log(`> Service: ${service.uuid}`)
-            characteristics.forEach(characteristics => {
-              log(
-                '>> Characteristic: ' + characteristic.uuid + ' ' +
-                getSupportedProperties(characteristic)
-              )
-            })
-          })
-      })
 
-      return queue
-    })
-    .catch(error => {
-      log(`Argh! ${error}`)
-    })
+    log('Connecting to GATT Server...')
+    const server = await device.gatt.connect()
+
+    log('Getting Services...')
+    const services = await server.getPrimaryServices()
+
+    log('Getting Characteristics...')
+    for (const service of services) {
+      log(`> Service: ${service.uuid}`)
+      const characteristics = await service.getCharacteristics()
+
+      characteristics.forEach(characteristic => {
+        log(
+          '>> Characteristic: ' + characteristic.uuid + ' ' +
+          getSupportedProperties(characteristic)
+        )
+      })
+    }
+
+  } catch(error) {
+    log(`Argh! ${error}`)
+  }
 }
 
 // Utils
